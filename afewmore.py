@@ -157,7 +157,7 @@ execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(origin.uname, origin.dns, SU
 log('changing dir mode...')
 execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(origin.uname, origin.dns, SUPER_USER_COMMAND, copy_dir))
 log("Checking source directory..")
-out, err = execute(("ssh {0}@{1} 'ls -l {2}'".format(origin.uname, origin.pubDns, copy_dir))
+out, err = execute(("ssh {0}@{1} 'ls -l {2}'".format(origin.uname, origin.dns, copy_dir))
         if err:
             elog("afewmore ERROR: cannot access directory or no such file")
 print err
@@ -193,7 +193,7 @@ execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(created.uname, created.dns, 
 log('changing dir mode...')
 execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
 log("Checking source directory..")
-out, err = execute(("ssh {0}@{1} 'ls -l {2}'".format(created.uname, created.pubDns, target_dir))
+out, err = execute(("ssh {0}@{1} 'ls -l {2}'".format(created.uname, created.dns, target_dir))
         if err:
             elog("afewmore ERROR: cannot access directory or no such file")
 print err
@@ -223,7 +223,7 @@ elog(err)
 
 #Copy files from source to new instance
 
-def scp(origin, targets, dir="/data"):
+def srcopy(origin, targets, dir="/data"):
 
      if dir[len(dir) - 1] != "/":
         dir += "/"
@@ -234,10 +234,10 @@ def scp(origin, targets, dir="/data"):
 
         start_time = time.time()
 
-        if target.isReady():
+        if target.Ready():
             target = analyze_created(target, dir)
-            log("copying to target: {0}".format(target.inId))
-            out, err = execute("scp -3C -r {0}@{1}:{2} {3}@{4}:{5}"
+            log("Copying to Target: {0}".format(target.inId))
+            out, err = execute("srcopy -3C -r {0}@{1}:{2} {3}@{4}:{5}"
                 .format(origin.uname, origin.dns, dir + "*", target.uname, target.dns, dir))
             if err:
                 elog(err)
@@ -258,15 +258,15 @@ def scp(origin, targets, dir="/data"):
 time.sleep(5)
 
 # Start of the program
-def start(instanceID, copy_dir, num_new_ins):
-    log("starting with {0} {1} {2}".format(instanceID, copy_dir, num_new_ins))
+def start(instanceID, copy_dir, num_ins):
+    log("starting with {0} {1} {2}".format(instanceID, copy_dir, num_ins))
     log("verbose: " + str(DEBUG))
 
     origin_instance = analyze_instance(instanceID, copy_dir)
     log("Completed checking source instance: " + origin_inst.inId)
 
     log("duplicating instances...")
-    targets_queue = duplicate(origin_inst, num_new_ins)
+    targets_queue = duplicate(origin_inst, num_ins)
     log("Completed duplicating instnaces ")
 
     log("Copying " + copy_dir + "...")
@@ -282,7 +282,7 @@ if __name__ == "__main__":
 #Source instance provided by the user    
     INSTANCE_ID = "" 
 #Default number of instances to start
-    NUM_NEW_INS = 10 
+    NUM_INS = 10 
 #Deafult Directory to copy files from
     COPY_DIR = "/data" 
     START_TIME = time.time()
@@ -304,7 +304,7 @@ if __name__ == "__main__":
             if i is not len(options) - 1:
                 elog("afewmore ERROR: Invalid argument after {0}".format(op))
             INSTANCE_ID = op
-            start(INSTANCE_ID, COPY_DIR, NUM_NEW_INS)
+            start(INSTANCE_ID, COPY_DIR, NUM_INS)
             break;
         if FLAGS[op]:
             elog("afewmore ERROR: Multiple argument {0}".format(op))
@@ -313,7 +313,7 @@ if __name__ == "__main__":
             FLAGS["-n"] = True
             i += 1
             try:
-                NUM_NEW_INS = int(options[i])
+                NUM_INS = int(options[i])
             except (IndexError, ValueError) as err:
                 elog("afewmore ERROR: Invalid argument after {0}".format(op))
         if op == "-d":
