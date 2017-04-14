@@ -1,0 +1,116 @@
+#!/usr/bin/env python
+
+import sys, getopt, os, json
+import subprocess
+import time
+import signal
+
+def elog(line):
+	sys.stderr.write(line + "\n")
+	sys.exit(1)
+
+
+# Security Groups
+class SecurityGroup:
+	def __init__(self, sg):
+		self.gname=sg["GroupName"]
+		self.gid=sg["GroupID"]
+	def __str__(self):
+		return "\tGroupName: {0}\n\tGroupID: {1}".format(self.gname, self.gid)
+
+
+# Instance
+#class Instance:
+	#def __init__(self, instance_id):
+		#out,err = execute("aws ec2-describe-instances --instance-id {0} --output json".format(instance_id))
+		#print out
+		#if out:
+		#	instance=json.loads(out)["Reservations"][0]["Instances"][0]
+		#	self.inId=instance_id
+		#	self.azone=instance["Placement"]["AvailabilityZone"]
+		#	self.key=instance["KeyName"]
+		#	self.imageId=instance["ImageId"]
+		#	self.inType=instance["InstanceType"]
+		#	self.ipv4=instance["PublicIP"]
+		#	self.dns=instance["PublicDNS"]
+		#	self.uname="root"
+		#	self.mkp="~/.ssh/my-key-pair.pem"
+		#	self.secGroup=[]
+
+
+
+def ec2_run_instance():
+	image_id='ami-6de0dd04'
+	group='615'
+	key='LHkey'
+	resp=os.popen("aws ec2 run-instances --image-id "+image_id+" --security-groups "+group+" --instance-type t1.micro --key-name "+key+" --query 'Instances[0].InstanceId'").readlines()
+	source_id=resp[0].strip('\"\n')
+	return source_id
+
+
+def ec2_terminate_instance(instance_id):
+	os.system("aws ec2 terminate-instances --instance-id "+instance_id)
+
+
+def ec2_instance_public_ip(instance_id):
+	resp=os.popen("aws ec2 describe-instances --instance-id "+instance_id+" --query 'Reservations[0].Instances[0].PublicIpAddress'").readlines()
+	id=resp[0].strip('\"\n')
+	return id
+
+
+def main():
+	instance=''
+	directory='/data'
+	n=10;
+	functionH=False
+	functionV=False
+	try:
+		opts, args=getopt.getopt(sys.argv[1:], "hvd:n:", ["help"])
+	except getopt.GetoptError:
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		sys.exit(2)
+	num_args=len(args)
+	if(num_args<1):
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		return False
+	instance=args[-0]
+	num_args-=1
+	for opt, arg in opts:
+		if opt =='-h':
+			functionH=True
+		elif opt=='-v':
+			functionV=True
+		elif opt=='-n':
+			if arg.isdigit():
+				n=arg
+				num_args-=1			
+			else:
+				print 'afewmore [-hv] [-d dir] [-n num] instance'
+		elif opt=='-d':
+			directory=arg
+			num_args-=1
+
+	if num_args>0:
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		return False
+	
+	source_id=ec2_run_instance()
+	print source_id
+	source_ip=ec2_instance_public_ip(source_id)
+	print source_ip
+	ec2_terminate_instance(source_id)
+	#os.system("scp -i LHkey.pem ubuntu@"+source_ip+":/home/ubuntu/ubuntu.txt ~/Desktop/")
+
+	#i=Instance(source_id)
+	#print i.imageId
+	#SecurityGroup sg(['newName','newID'])
+	#print sg.gname+' '+sg.gid
+
+
+
+if __name__ == '__main__':
+	main()
+
+
+#print 'Num'ber of arguments:', len(sys.argv),
+#print 'Argument List:', str(sys.argv)
