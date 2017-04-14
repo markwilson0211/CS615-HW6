@@ -15,47 +15,45 @@ def elog(line):
     sys.stderr.write(line + "\n")
     sys.exit(1)
 #processing message
-def log(line)
+def log(line):
  if DEBUG:
-    print "DEBUG: " +str(round(float(time.time() - START_TIME).3))+"s -" +str(line)
+    print "DEBUG: " + str(round(float(time.time() - START_TIME),3))+"s -" +str(line)
 
 # Security Groups
-class SecurityGroup
-  def_init_(self,sg):
+class SecurityGroup:
+  def __init__(self, sg):
     self.gname = sg["GroupName"]
     self.gid = sg["GroupID"]
 
-  def_str_(self):
-  return "\tGroupName: {0}\n\tGroupID: {1}".format(self.gname, self.gid)
+  def __str__(self):
+    return "\tGroupName: {0}\n\tGroupID: {1}".format(self.gname, self.gid)
 
 
 class Instance:
-  def_init_(self, instanceID):
+  def __init__(self, instanceID):
     out,err = execute("aws ec2-describe-instances --instance-id {0} --output json".format(instanceID))
 
   if out:
-    instance = json.loads(out)["Reservations"][0]["Instances"[0]
-    self.inId = instanceID
-    self.azone = instance["Placement"]["AvailabilityZone"]
-    self.key = instance["KeyName"]
-    self.Imgid = instance["ImageId"]
-    self.InType = instance["InstanceType"]
-    self.Ip = instance ["PublicIP"]
-    self.dns = instance["PublicDNS"]
-    self.uname = "root"
-    self.mkp = "~/.ssh/my-key-pair.pem"
-    self.secgroup = []
-
-    for group in instance["SecurityGroup"]:
-      self.secgroup.append(SecurityGroup(group))
-    else:
-      elog(err) 
-  def_str_(self):
-    res="\tinstanceID:{0} \n\tAvailabilityZone: {1}\n\tKeyName: {2}\n\tImageId: {3}\n\tInsatnceType: {4}\n\t
-        PublicIP: {5}".format(self.inID, self.azone, self.key, self.Imgid, self.InType, self.Ip)
-        for i, group in enumerate(self.secgroup):
-          res += "\n\tSG #" + str(i)
-          res += str(group)
+      instance = json.loads(out)["Reservations"][0]["Instances"[0]]
+      self.inId = instanceID
+      self.azone = instance["Placement"]["AvailabilityZone"]
+      self.key = instance["KeyName"]
+      self.Imgid = instance["ImageId"]
+      self.InType = instance["InstanceType"]
+      self.Ip = instance ["PublicIP"]
+      self.dns = instance["PublicDNS"]
+      self.uname = "root"
+      self.mkp = "~/.ssh/my-key-pair.pem"
+      self.secgroup = []
+      for group in instance["SecurityGroup"]:
+          self.secgroup.append(SecurityGroup(group))
+  else:
+        elog(err) 
+  def __str__(self):
+    res="\tinstanceID:{0} \n\tAvailabilityZone: {1}\n\tKeyName: {2}\n\tImageId: {3}\n\tInsatnceType: {4}\n\tPublicIP: {5}".format(self.inID, self.azone, self.key, self.Imgid, self.InType, self.Ip)
+    for i, group in enumerate(self.secgroup):
+        res += "\n\tSG #" + str(i)
+        res += str(group)
     return res
 
 #Checks to see if there is a successful login using ssh
@@ -63,7 +61,7 @@ class Instance:
 
 def Ready(self):
   log("Checking Instance: {0}".format(self.inID))
-  out,err = execute("ssh-keyscan {0}".format(self.Ip)
+  out,err = execute("ssh-keyscan {0}".format(self.Ip))
 
   if out:
     out,err = execute("echo '{0}'>> ~/.ssh/known_hosts".format(out))
@@ -82,127 +80,130 @@ def setLogin(self,username):
 
 #host parser which parses ~/.ssh.config to the host
 
-def parser(dir)
-config = open(dir,'r')
-except IOError, err:
-elog("afewmore ERROR: can not open file: {0}".format(dir))
+def parser(dir):
+ 
+    config = open(dir,'r')
+#except IOError, err:
+    elog("afewmore ERROR: can not open file: {0}".format(dir))
 
 lines = config.readlines()
 hosts = []
 for i in range(len(lines)):
-  if lines[i].strip(" ").split(" ")[0] == "Host":
-  j = i + 1
-  while(j < len(lines) and lines[j].strip(" ").split(" ")[0]!="Host"):
-  j += 1
-  res = [lines[k] for k in range(i,j)]
-  hosts.append(Host([item.strip().split(" ") for item in res]))
+    if lines[i].strip(" ").split(" ")[0] == "Host":
+        j = i + 1
+        while(j < len(lines) and lines[j].strip(" ").split(" ")[0]!="Host"):
+                       j += 1
+        res = [lines[k] for k in range(i,j)]
+        hosts.append(Host([item.strip().split(" ") for item in res]))
 config.close()
-
+  
 #executing the function
 #successful return is (stdout, None), if not successful, return is (None,stderr)
 
-def execute(cmd, timeout=None):
+#def execute(cmd, timeout=None):
 
-try:
-  proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+ # try:
+ #  proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
 
-output, error = proc.communicate()
+  #output, error = proc.communicate()
 
-if timeout is not None:
-  time.sleep(timeout)
-  log("kill command: \n\t{0}".format(cmd)
-  os.killprog(pro.pid, signal.SIGTERM)
-  return (output, error)
+ # if timeout is not None:
+ #    time.sleep(timeout)
+ #     log("kill command: \n\t{0}".format(cmd)
+ #     os.killprog(proc.pid, signal.SIGTERM)
+ #     return (output, error)
 
-if output:
-  return (output, None)
-if error:
-  log("There was an error executing the command: \n\t{0}".format(cmd))
-  return (None, error)
-return ("", None)
+ # if output:
+ #     return (output, None)
+ # if error:
+ #     log("There was an error executing the command: \n\t{0}".format(cmd))
+ #     return (None, error)
+ # return ("", None)
 
-except OSError, oserror:
-  return (None, oserror)
+ # except OSError, oserror:
+ #     return (None, oserror)
 
 #Analyzing the original instance
 
 def analyze_instance(instanceID, copy_dir):
-  log("Analyzing the original Instance: {0}".format(instanceID))
+    log("Analyzing the original Instance: {0}".format(instanceID))
 
-origin = Instance(instanceID)
-while not origin.Ready():
-  origin.Ready()
+    origin = Instance(instanceID)
+    while not origin.Ready():
+      origin.Ready()
 
-log('cheking username...')
-  out, err = execute("ssh {0}@{1} 'echo cs615'".format(origin.uname, origin.dns))
+    log('cheking username...')
+    out, err = execute("ssh {0}@{1} 'echo cs615'".format(origin.uname, origin.dns))
 
-if err:
-  log(err)
-  elog("afewmore ERROR: can not access instance: {0}".format(origin.inId))
+    if err:
+      log(err)
+      elog("afewmore ERROR: can not access instance: {0}".format(origin.inId))
 
-else:
-  msg = out.split(' ')
-  if msg[0].strip() !="cs615":
-  log("user is not [0]".format(origin.uname))
-  login = msg[5].strip{'"')
-  log("changing user to {0}".format(login))
-  origin.setLogin(login)
+    else:
+      msg = out.split(' ')
+      if msg[0].strip() !="cs615":
+        log("user is not [0]".format(origin.uname))
+      login = msg[5].strip('"')
+      log("changing user to {0}".format(login))
+    origin.setLogin(login)
 
-else: log("user is {0}".format(origin.uname))
+    #else:
+    # log("user is {0}".format(origin.uname))
 
-#sets superuser command
-SUPER_USER_COMMAND = 'sudo'
-log('changing dir ownership...')
-execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(origin.uname, origin.dns, SUPER_USER_COMMAND, copy_dir))
-log('changing dir mode...')
-execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(origin.uname, origin.dns, SUPER_USER_COMMAND, copy_dir))
-log("Checking source directory..")
-out, err = execute(("ssh {0}@{1} 'ls -l {2}'".format(origin.uname, origin.dns, copy_dir))
-        if err:
-            elog("afewmore ERROR: cannot access directory or no such file")
-print err
+      #sets superuser command
+    SUPER_USER_COMMAND = 'sudo'
+    log('changing dir ownership...')
+    execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(origin.uname, origin.dns, SUPER_USER_COMMAND, copy_dir))
+    log('changing dir mode...')
+    execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(origin.uname, origin.dns, SUPER_USER_COMMAND, copy_dir))
+    log("Checking source directory..")
+    out, err = execute("ssh {0}@{1} 'ls -l {2}'".format(origin.uname, origin.dns, copy_dir))
+    if err:
+                elog("afewmore ERROR: cannot access directory or no such file")
+                print err
 
-return origin
+    return origin
 
 #Analyzes Created Instance
 
-dir analyze_created(created, target_dir)
-log('cheking username...')
-  out, err = execute("ssh {0}@{1} 'echo cs615'".format(created.uname, created.dns))
+def analyze_created(created, target_dir):
+    log('cheking username...')
+    out, err = execute("ssh {0}@{1} 'echo cs615'".format(created.uname, created.dns))
 
-if err:
-  log(err)
-  elog("afewmore ERROR: can not access instance: {0}".format(created.inId))
+    if err:
+      log(err)
+      elog("afewmore ERROR: can not access instance: {0}".format(created.inId))
 
-else:
-  msg = out.split(' ')
-  if msg[0].strip() !="cs615":
-  log("user is not [0]".format(created.uname))
-  login = msg[5].strip{'"')
-  log("changing user to {0}".format(login))
-  created.setLogin(login)
+    else:
+      msg = out.split(' ')
+      if msg[0].strip() !="cs615":
+        log("user is not [0]".format(created.uname))
+        login = msg[5].strip('"')
+        log("changing user to {0}".format(login))
+        created.setLogin(login)
 
-else: log("user is {0}".format(created.uname))
+    #else:
+      log("user is {0}".format(created.uname))
 
-#sets superuser command
-SUPER_USER_COMMAND = 'sudo'
-log('Creating Target Dir..')
-execute("ssh {0}@{1} '{2} mkdir -p {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
-log('changing dir ownership...')
-execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
-log('changing dir mode...')
-execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
-log("Checking source directory..")
-out, err = execute(("ssh {0}@{1} 'ls -l {2}'".format(created.uname, created.dns, target_dir))
-        if err:
-            elog("afewmore ERROR: cannot access directory or no such file")
-print err
+      #sets superuser command
+      SUPER_USER_COMMAND = 'sudo'
+      log('Creating Target Dir..')
+      execute("ssh {0}@{1} '{2} mkdir -p {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
+      log('changing dir ownership...')
+      execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
+      log('changing dir mode...')
+      execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
+      log("Checking source directory..")
+      out, err = execute("ssh {0}@{1} 'ls -l {2}'".format(created.uname, created.dns, target_dir))
+      if err:
+          elog("afewmore ERROR: cannot access directory or no such file")
+          print err
 
-return created
+      return created
 
 def duplicate(origin_inst, num):
 
-instances_queue = [] 
+    instances_queue = [] 
     origin = origin_inst
     out, err = execute("aws ec2 run-instances --placement AvailabilityZone={0} --image-id {1} --security-group-ids {2} --count {3} --instance-type {4} --key-name {5} --query 'Instances[*].InstanceId' --output json"
         .format(
@@ -219,7 +220,7 @@ instances_queue = []
             instances_queue.append(Instance(instanceID))
         return deque(instances_queue)
     else:
-elog(err)
+       elog(err)
 
 #Copy files from source to new instance
 
@@ -228,7 +229,7 @@ def srcopy(origin, targets, dir="/data"):
      if dir[len(dir) - 1] != "/":
         dir += "/"
 
-    while len(targets) is not 0:
+     while len(targets) is not 0:
         target = targets.popleft()
         target.uname = origin.uname
 
@@ -247,7 +248,7 @@ def srcopy(origin, targets, dir="/data"):
                 log("successfully copied files")
                 if not DEBUG:
                     print "\t" + target.inId
-               log(target)
+                log(target)
         else:
             targets.append(target)
         
