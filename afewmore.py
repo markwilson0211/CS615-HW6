@@ -31,24 +31,24 @@ class SecurityGroup:
 
 class Instance:
   def __init__(self, instanceID):
-    out,err = execute("aws ec2-describe-instances --instance-id {0} --output json".format(instanceID))
+      out, err = execute("aws ec2-describe-instances --instance-id {0} --output json".format(instanceID))
 
-  if out:
-      instance = json.loads(out)["Reservations"][0]["Instances"[0]]
-      self.inId = instanceID
-      self.azone = instance["Placement"]["AvailabilityZone"]
-      self.key = instance["KeyName"]
-      self.Imgid = instance["ImageId"]
-      self.InType = instance["InstanceType"]
-      self.Ip = instance ["PublicIP"]
-      self.dns = instance["PublicDNS"]
-      self.uname = "root"
-      self.mkp = "~/.ssh/my-key-pair.pem"
-      self.secgroup = []
-      for group in instance["SecurityGroup"]:
-          self.secgroup.append(SecurityGroup(group))
-  else:
-        elog(err) 
+      if out:
+          instance = json.loads(out)["Reservations"][0]["Instances"[0]]
+          self.inId = instanceID
+          self.azone = instance["Placement"]["AvailabilityZone"]
+          self.key = instance["KeyName"]
+          self.Imgid = instance["ImageId"]
+          self.InType = instance["InstanceType"]
+          self.Ip = instance ["PublicIP"]
+          self.dns = instance["PublicDNS"]
+          self.uname = "root"
+          self.mkp = "~/.ssh/my-key-pair.pem"
+          self.secgroup = []
+          for group in instance["SecurityGroup"]:
+              self.secgroup.append(SecurityGroup(group))
+      else:
+          elog(err) 
   def __str__(self):
     res="\tinstanceID:{0} \n\tAvailabilityZone: {1}\n\tKeyName: {2}\n\tImageId: {3}\n\tInsatnceType: {4}\n\tPublicIP: {5}".format(self.inID, self.azone, self.key, self.Imgid, self.InType, self.Ip)
     for i, group in enumerate(self.secgroup):
@@ -81,47 +81,47 @@ def setLogin(self,username):
 #host parser which parses ~/.ssh.config to the host
 
 def parser(dir):
- 
-    config = open(dir,'r')
-#except IOError, err:
-    elog("afewmore ERROR: can not open file: {0}".format(dir))
+    try: 
+        config = open(dir,'r')
+    except IOError, err:
+        elog("afewmore ERROR: can not open file: {0}".format(dir))
 
-lines = config.readlines()
-hosts = []
-for i in range(len(lines)):
-    if lines[i].strip(" ").split(" ")[0] == "Host":
-        j = i + 1
-        while(j < len(lines) and lines[j].strip(" ").split(" ")[0]!="Host"):
+    lines = config.readlines()
+    hosts = []
+    for i in range(len(lines)):
+        if lines[i].strip(" ").split(" ")[0] == "Host":
+            j = i + 1
+            while(j < len(lines) and lines[j].strip(" ").split(" ")[0]!="Host"):
                        j += 1
-        res = [lines[k] for k in range(i,j)]
-        hosts.append(Host([item.strip().split(" ") for item in res]))
-config.close()
+            res = [lines[k] for k in range(i,j)]
+            hosts.append(Host([item.strip().split(" ") for item in res]))
+    config.close()
   
 #executing the function
 #successful return is (stdout, None), if not successful, return is (None,stderr)
 
-#def execute(cmd, timeout=None):
+def execute(cmd, timeout=None):
 
- # try:
- #  proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
 
-  #output, error = proc.communicate()
+        output, error = proc.communicate()
 
- # if timeout is not None:
- #    time.sleep(timeout)
- #     log("kill command: \n\t{0}".format(cmd)
- #     os.killprog(proc.pid, signal.SIGTERM)
- #     return (output, error)
+        if timeout is not None:
+            time.sleep(timeout)
+            log("kill command: \n\t{0}".format(cmd))
+            os.killprog(proc.pid, signal.SIGTERM)
+            return (output, error)
 
- # if output:
- #     return (output, None)
- # if error:
- #     log("There was an error executing the command: \n\t{0}".format(cmd))
- #     return (None, error)
- # return ("", None)
+        if output:
+           return (output, None)
+        if error:
+           log("There was an error executing the command: \n\t{0}".format(cmd))
+           return (None, error)
+        return ("", None)
 
- # except OSError, oserror:
- #     return (None, oserror)
+    except OSError, oserror:
+        return (None, oserror)
 
 #Analyzing the original instance
 
@@ -130,27 +130,36 @@ def analyze_instance(instanceID, copy_dir):
 
     origin = Instance(instanceID)
     while not origin.Ready():
-      origin.Ready()
+        origin.Ready()
+
+    log("Finding Hosts from: {0}".format(SSH_CONFIG_DIR))
+    for host in parser(SSH_CONFIG_DIR):
+         if host.Ip == origin.Ip or host.Ip == origin.dns:
+             log("Host has been found: {0}".format(host))
+             origin.setLogin(host.username)
+             
 
     log('cheking username...')
     out, err = execute("ssh {0}@{1} 'echo cs615'".format(origin.uname, origin.dns))
 
     if err:
-      log(err)
-      elog("afewmore ERROR: can not access instance: {0}".format(origin.inId))
+        log(err)
+        elog("afewmore ERROR: can not access instance: {0}".format(origin.inId))
 
     else:
-      msg = out.split(' ')
-      if msg[0].strip() !="cs615":
-        log("user is not [0]".format(origin.uname))
-      login = msg[5].strip('"')
-      log("changing user to {0}".format(login))
-    origin.setLogin(login)
+        msg = out.split(' ')
+        if msg[0].strip() !="cs615":
+            log("user is not [0]".format(origin.uname))
+            login = msg[5].strip('"')
+            log("changing user to {0}".format(login))
+            origin.setLogin(login)
 
-    #else:
-    # log("user is {0}".format(origin.uname))
+        else:
+            log("user is {0}".format(origin.uname))
 
-      #sets superuser command
+     
+   #sets superuser command
+
     SUPER_USER_COMMAND = 'sudo'
     log('changing dir ownership...')
     execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(origin.uname, origin.dns, SUPER_USER_COMMAND, copy_dir))
@@ -171,35 +180,34 @@ def analyze_created(created, target_dir):
     out, err = execute("ssh {0}@{1} 'echo cs615'".format(created.uname, created.dns))
 
     if err:
-      log(err)
-      elog("afewmore ERROR: can not access instance: {0}".format(created.inId))
+        log(err)
+        elog("afewmore ERROR: can not access instance: {0}".format(created.inId))
 
     else:
-      msg = out.split(' ')
-      if msg[0].strip() !="cs615":
-        log("user is not [0]".format(created.uname))
-        login = msg[5].strip('"')
-        log("changing user to {0}".format(login))
-        created.setLogin(login)
+        msg = out.split(' ')
+        if msg[0].strip() !="cs615":
+            log("user is not [0]".format(created.uname))
+            login = msg[5].strip('"')
+            log("changing user to {0}".format(login))
+            created.setLogin(login)
 
-    #else:
-      log("user is {0}".format(created.uname))
+        else:
+            log("user is {0}".format(created.uname))
 
       #sets superuser command
-      SUPER_USER_COMMAND = 'sudo'
-      log('Creating Target Dir..')
-      execute("ssh {0}@{1} '{2} mkdir -p {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
-      log('changing dir ownership...')
-      execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
-      log('changing dir mode...')
-      execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
-      log("Checking source directory..")
-      out, err = execute("ssh {0}@{1} 'ls -l {2}'".format(created.uname, created.dns, target_dir))
-      if err:
-          elog("afewmore ERROR: cannot access directory or no such file")
-          print err
-
-      return created
+        SUPER_USER_COMMAND = 'sudo'
+        log('Creating Target Dir..')
+        execute("ssh {0}@{1} '{2} mkdir -p {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
+        log('changing dir ownership...')
+        execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
+        log('changing dir mode...')
+        execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
+        log("Checking source directory..")
+        out, err = execute("ssh {0}@{1} 'ls -l {2}'".format(created.uname, created.dns, target_dir))
+        if err:
+            elog("afewmore ERROR: cannot access directory or no such file")
+         
+    return created
 
 def duplicate(origin_inst, num):
 
