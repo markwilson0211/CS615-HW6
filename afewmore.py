@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 
 import subprocess
 import sys
@@ -8,7 +8,6 @@ import time
 import signal
 
 from collections import deque
-
 #prints error message
 
 def elog(line):
@@ -16,45 +15,45 @@ def elog(line):
     sys.exit(1)
 #processing message
 def log(line):
- if DEBUG:
-    print "DEBUG: " + str(round(float(time.time() - START_TIME),3))+"s -" +str(line)
+     if DEBUG:
+         print "DEBUG: " + str(round(float(time.time() - START_TIME), 3)) + "s - " + str(line)
 
 # Security Groups
 class SecurityGroup:
-  def __init__(self, sg):
-    self.gname = sg["GroupName"]
-    self.gid = sg["GroupID"]
+    def __init__(self, sg):
+        self.gname = sg["GroupName"]
+        self.gid = sg["GroupID"]
 
-  def __str__(self):
-    return "\tGroupName: {0}\n\tGroupID: {1}".format(self.gname, self.gid)
+    def __str__(self):
+        return "\tGroupName: {0}\n\tGroupID: {1}".format(self.gname, self.gid)
 
 
 class Instance:
-  def __init__(self, instanceID):
-      out, err = execute("aws ec2-describe-instances --instance-id {0} --output json".format(instanceID))
+    def __init__(self, instanceID):
+        out, err = execute("aws ec2 describe-instances --instance-id {0} --output json".format(instanceID))
 
-      if out:
-          instance = json.loads(out)["Reservations"][0]["Instances"[0]]
-          self.inId = instanceID
-          self.azone = instance["Placement"]["AvailabilityZone"]
-          self.key = instance["KeyName"]
-          self.Imgid = instance["ImageId"]
-          self.InType = instance["InstanceType"]
-          self.Ip = instance ["PublicIP"]
-          self.dns = instance["PublicDNS"]
-          self.uname = "root"
-          self.mkp = "~/.ssh/my-key-pair.pem"
-          self.secgroup = []
-          for group in instance["SecurityGroup"]:
-              self.secgroup.append(SecurityGroup(group))
-      else:
-          elog(err) 
-  def __str__(self):
-    res="\tinstanceID:{0} \n\tAvailabilityZone: {1}\n\tKeyName: {2}\n\tImageId: {3}\n\tInsatnceType: {4}\n\tPublicIP: {5}".format(self.inID, self.azone, self.key, self.Imgid, self.InType, self.Ip)
-    for i, group in enumerate(self.secgroup):
-        res += "\n\tSG #" + str(i)
-        res += str(group)
-    return res
+        if out:
+            instance = json.loads(out)["Reservations"][0]["Instances"][0]
+            self.inId = instanceID
+            self.azone = instance["Placement"]["AvailabilityZone"]
+            self.key = instance["KeyName"]
+            self.Imgid = instance["ImageId"]
+            self.InType = instance["InstanceType"]
+            self.Ip = instance["PublicIP"]
+            self.dns = instance["PublicDNS"]
+            self.uname = "root"
+            self.mkp = "~/.ssh/my-key-pair.pem"
+            self.secgroup = []
+            for group in instance["SecurityGroup"]:
+                self.secgroup.append(SecurityGroup(group))
+        else:
+            elog(err) 
+    def __str__(self):
+      res="\tinstanceID:{0} \n\tAvailabilityZone: {1}\n\tKeyName: {2}\n\tImageId: {3}\n\tInsatnceType: {4}\n\tPublicIP: {5}".format(self.inID, self.azone, self.key, self.Imgid, self.InType, self.Ip)
+      for i, group in enumerate(self.secgroup):
+          res += "\n\tSG #" + str(i)
+          res += str(group)
+      return res
 
 #Checks to see if there is a successful login using ssh
 #If yes, a footprint of instance will be returned
