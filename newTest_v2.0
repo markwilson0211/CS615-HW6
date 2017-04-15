@@ -1,0 +1,252 @@
+#!/usr/bin/env python
+
+import sys, getopt, os, json
+import subprocess
+import threading
+
+def elog(line):
+	sys.stderr.write(line + "\n")
+	sys.exit(1)
+
+
+# Security Groups
+class SecurityGroup:
+	def __init__(self, sg):
+		self.gname=sg["GroupName"]
+		self.gid=sg["GroupID"]
+	def __str__(self):
+		return "\tGroupName: {0}\n\tGroupID: {1}".format(self.gname, self.gid)
+
+
+# Instance
+#class Instance:
+	#def __init__(self, instance_id):
+		#out,err = execute("aws ec2-describe-instances --instance-id {0} --output json".format(instance_id))
+		#print out
+		#if out:
+		#	instance=json.loads(out)["Reservations"][0]["Instances"][0]
+		#	self.inId=instance_id
+		#	self.azone=instance["Placement"]["AvailabilityZone"]
+		#	self.key=instance["KeyName"]
+		#	self.imageId=instance["ImageId"]
+		#	self.inType=instance["InstanceType"]
+		#	self.ipv4=instance["PublicIP"]
+		#	self.dns=instance["PublicDNS"]
+		#	self.uname="root"
+		#	self.mkp="~/.ssh/my-key-pair.pem"
+		#	self.secGroup=[]
+
+
+
+def ec2_run_instance(image_id):
+	group='615'
+	key='LHkey'
+	#resp=os.popen("aws ec2 run-instances --image-id "+image_id+" --security-groups "+group+" --instance-type t1.micro --key-name "+key+" --query 'Instances[0].InstanceId'").readlines()
+	resp=subprocess.Popen([	"aws ec2 run-instances --image-id "+image_id+ \
+							" --security-groups "+group+ \
+							" --instance-type t1.micro --key-name "+key+ \
+							" --query 'Instances[0].InstanceId'"], \
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	temp=resp.stdout.readlines()
+	if temp==[]:
+		error=ssh.stderr.readlines()
+		print error
+		return 2
+	else:
+		instance_id=temp[0].strip('\"\n')
+		resp.stdout.close()
+		resp.wait()
+		return instance_id
+
+
+def ec2_terminate_instance(instance_id):
+	os.system("aws ec2 terminate-instances --instance-id "+instance_id)
+
+
+def ec2_instance_public_ip(instance_id):
+	#resp=os.popen("aws ec2 describe-instances --instance-id "+instance_id+" --query 'Reservations[0].Instances[0].PublicIpAddress'").readlines()
+	resp=subprocess.Popen([	"aws ec2 describe-instances --instance-id "+instance_id \
+							+" --query 'Reservations[0].Instances[0].PublicIpAddress'"], \
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	temp=resp.stdout.readlines()
+	if temp==[]:
+		error=ssh.stderr.readlines()
+		print error
+		return 2
+	else:
+		id=temp[0].strip('\"\n')
+		resp.stdout.close()
+		resp.wait()
+		return id
+
+'''
+def tar_directory(instance_ip, directory):
+	ssh=subprocess.Popen([	"ssh -o \"StrictHostKeyChecking no\" -i /home/oem/LHkey.pem ubuntu@"+instance_ip], \
+							stdin=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	ssh.stdin.write("sudo tar -zcvf /afewmore_615.tar.gz "+directory)
+	ssh.stdin.close()
+	ssh.wait()
+	return '/afewmore_615.tar.gz'
+'''
+
+
+def tar_directory(instance_ip, directory):
+	def fun():
+		print "Start compress:\n"
+
+	t=threading.Timer(30, fun())
+
+	ssh=subprocess.Popen([	"ssh -o \"StrictHostKeyChecking no\" -i /home/oem/LHkey.pem ubuntu@"+instance_ip], \
+								stdin=subprocess.PIPE, \
+								stderr=subprocess.PIPE, \
+								shell=True)
+	ssh.stdin.write("sudo tar -zcvf /afewmore_615.tar.gz "+directory)
+	ssh.stdin.close()
+	ssh.wait()
+	return '/afewmore_615.tar.gz'
+
+
+def ssh_transfer(source_ip, target_ip, source_directory):
+	def fun():
+		print "Start ssh:\n"
+
+	t=threading.Timer(40, fun())
+	resp=subprocess.Popen([	"sudo scp -3 -o \"StrictHostKeyChecking no\" -i /home/oem/LHkey.pem ubuntu@"+ \
+							source_ip+":"+source_directory+ \
+							" ubuntu@"+target_ip+":/home/ubuntu/"],
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	resp.stdout.close()
+	resp.wait()
+
+
+def duplicate_tar(n, directory, image_id):
+	source_id=ec2_run_instance(image_id)
+	print "source got\n"
+	source_ip=ec2_instance_public_ip(source_id)
+	print "source ip got\n"
+	file_name=tar_directory(source_ip,directory)
+	print "source compress\n"
+	duplicate_id=[]
+	duplicate_ip=[]
+	n=int(n)
+	for i in range(0,n):
+		print str(i)+" loop:\n"
+		duplicate_id.append(ec2_run_instance(image_id))
+		print "target got\n"
+		duplicate_ip.append(ec2_instance_public_ip(duplicate_id[0]))
+		print "tartget ip got\n"
+		ssh_transfer(source_ip,duplicate_ip[0], file_name)
+		print "transfer finish\n"
+	print "duplicate finish\n"
+	return duplicate_id
+
+
+def main():
+	instance=''
+	directory='/data'
+	n=10;
+	functionH=False
+	functionV=False
+	try:
+		opts, args=getopt.getopt(sys.argv[1:], "hvd:n:", ["help"])
+	except getopt.GetoptError:
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		sys.exit(2)
+	num_args=len(args)
+	if(num_args<1):
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		return False
+	instance=args[-0]
+	num_args-=1
+	for opt, arg in opts:
+		if opt =='-h':
+			functionH=True
+		elif opt=='-v':
+			functionV=True
+		elif opt=='-n':
+			if arg.isdigit():
+				n=arg
+				num_args-=1			
+			else:
+				print 'afewmore [-hv] [-d dir] [-n num] instance'
+		elif opt=='-d':
+			directory=arg
+			num_args-=1
+
+	if num_args>0:
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		return False
+	
+	result=duplicate_tar(1, directory, instance)
+	print result
+	#result=duplicate_tar(n,directory,instance)
+
+	#id1=ec2_run_instance('ami-6de0dd04')
+	#ip1=ec2_instance_public_ip(id1)
+		
+	#ssh.stdin.close()
+	#ssh.wait()
+	#tar_directory(ip1,'/home/')
+	#id2=ec2_run_instance('ami-6de0dd04')
+	#ip2=ec2_instance_public_ip(id2)
+	#print "start:\n"
+	#tar_directory(ip1,'/home/')
+	#timer=threading.Timer(30,tar_directory(ip1,'/home/'))
+	#timer.start()
+	
+
+	#id2=ec2_run_instance('ami-6de0dd04')
+	#ip2=ec2_instance_public_ip(id2)
+
+	#ssh_transfer(ip1, ip2, '/afewmore_615.tar.gz')
+
+	#for i in result:
+	#	print result
+
+	#source_id='i-089f4bfd28b5a2228'#ec2_run_instance()
+	#print source_id
+	#source_ip='52.91.12.98'#ec2_instance_public_ip(source_id)
+	#target_ip='54.221.175.144'
+
+	
+	#ssh=subprocess.Popen(["ssh -i /home/oem/LHkey.pem ubuntu@"+host], \
+	#	stdin=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+	#ssh.stdin.write("tar -zcvf /home/ubuntu/subline.tar.gz /home/ubuntu/")#("tar -zcvf /home/ubuntu/subline.tar.gz /home/ubuntu/")
+	#ssh.stdout.close()
+	
+	#result=ssh.stdout.readlines()
+	#if result==[]:
+	#	error=ssh.stderr.readlines()
+	#	print error
+	#else:
+	#	print result
+	#ssh.stdin.write("tar -zcvf /home/ubuntu/subline.tar.gz /home/ubuntu/")
+	
+	#ssh.stdin.close()
+	#os.system("scp -3 -i /home/oem/LHkey.pem ubuntu@"+source_ip+":/home/ ubuntu@"+target_ip+":/home/ubuntu/")
+	#print source_ip
+	#ec2_terminate_instance(source_id)
+	#os.system("scp -i LHkey.pem ubuntu@"+source_ip+":/home/ubuntu/ubuntu.txt ~/Desktop/")
+	#getIns=os.popen("ssh -i /home/oem/LHkey.pem ubuntu@"+source_ip).readlines()
+	#print getIns
+	#tar zxvf FileName.tar.gz
+	#tar zcvf FileName.tar.gz DirName
+
+	#ssh=subprocess.Popen(["ssh"])
+
+	#i=Instance(source_id)
+	#print i.imageId
+	#SecurityGroup sg(['newName','newID'])
+	#print sg.gname+' '+sg.gid
+
+
+if __name__ == '__main__':
+	main()
