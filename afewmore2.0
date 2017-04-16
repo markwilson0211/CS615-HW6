@@ -1,0 +1,298 @@
+#!/usr/bin/env python
+
+import sys, getopt, os, json
+import subprocess
+import threading
+import signal
+
+def elog(line):
+	sys.stderr.write(line + "\n")
+	sys.exit(1)
+
+
+#processing message
+def log(line):
+     if False:
+         print "DEBUG: " + str(round(float(time.time() - START_TIME), 3)) + "s - " + str(line)
+
+
+# Security Groups
+class SecurityGroup:
+	def __init__(self, sg):
+		self.gname=sg["GroupName"]
+		self.gid=sg["GroupId"]
+	def __str__(self):
+		return "\tGroupName: {0}\n\tGroupID: {1}".format(self.gname, self.gid)
+
+
+def execute(cmd, timeout=None):
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+        output, error = proc.communicate()
+        if timeout is not None:
+            time.sleep(timeout)
+            log("kill command: \n\t{0}".format(cmd))
+            os.killprog(proc.pid, signal.SIGTERM)
+            return (output, error)
+        if output:
+           return (output, None)
+        if error:
+           log("There was an error executing the command: \n\t{0}".format(cmd))
+           #print "There was an error executing the command: \n\t{0}".format(cmd)
+           return (None, error)
+        return ("", None)
+    except OSError, oserror:
+        return (None, oserror)
+
+
+class Instance:
+	def __init__(self, instanceID):
+		out, err = execute("aws ec2 describe-instances --instance-id {0} --output json".format(instanceID))
+		if out:
+			instance = json.loads(out)["Reservations"][0]["Instances"][0]
+			self.inId = instanceID
+			self.azone = instance["Placement"]["AvailabilityZone"]
+			self.key = instance["KeyName"]
+			self.Imgid = instance["ImageId"]
+			self.InType = instance["InstanceType"]
+			self.Ip = instance ["PublicIpAddress"]
+			self.dns = instance["PublicDnsName"]
+			self.uname = "ubuntu"
+			self.mkp = "~/.ssh/my-key-pair.pem"
+			self.secgroup = []
+			for group in instance["SecurityGroups"]:
+				self.secgroup.append(SecurityGroup(group))
+		else:
+			elog(err) 
+	def __str__(self):
+		res="\tinstanceID:{0} \n\tAvailabilityZone: {1}\n\tKeyName: {2}\n\tImageId: {3}\n\tInsatnceType: {4}\n\tPublicIP: {5}".format(self.inID, self.azone, self.key, self.Imgid, self.InType, self.Ip)
+		for i, group in enumerate(self.secgroup):
+			res += "\n\tSG #" + str(i)
+			res += str(group)
+			return res
+
+
+def ec2_run_instance(image_id, insType, group, key):
+	#resp=os.popen("aws ec2 run-instances --image-id "+image_id+" --security-groups "+group+" --instance-type t1.micro --key-name "+key+" --query 'Instances[0].InstanceId'").readlines()
+	gs=""
+	for g in group:
+		gs+=g.gname
+		gs+=" "
+	resp=subprocess.Popen([	"aws ec2 run-instances --image-id "+image_id+ \
+							" --security-groups "+gs+ \
+							" --instance-type "+insType+ \
+							" --key-name "+key+ \
+							" --query 'Instances[0].InstanceId'"], \
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	temp=resp.stdout.readlines()
+	if temp==[]:
+		error=resp.stderr.readlines()
+		print error
+		return 2
+	else:
+		instance_id=temp[0].strip('\"\n')
+		resp.stdout.close()
+		resp.wait()
+		return instance_id
+
+
+def ec2_terminate_instance(instance_id):
+	os.system("aws ec2 terminate-instances --instance-id "+instance_id)
+
+
+def ec2_instance_public_ip(instance_id):
+	#resp=os.popen("aws ec2 describe-instances --instance-id "+instance_id+" --query 'Reservations[0].Instances[0].PublicIpAddress'").readlines()
+	resp=subprocess.Popen([	"aws ec2 describe-instances --instance-id "+instance_id+ \
+							" --query \'Reservations[0].Instances[0].PublicIpAddress\'"], \
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	temp=resp.stdout.readlines()
+	if temp==[]:
+		error=ssh.stderr.readlines()
+		elog(err)
+		return 2
+	else:
+		dns=temp[0].strip('\"\n')
+		resp.stdout.close()
+		resp.wait()
+		return dns
+
+
+def ec2_instance_public_dns(instance_id):
+	#resp=os.popen("aws ec2 describe-instances --instance-id "+instance_id+" --query 'Reservations[0].Instances[0].PublicIpAddress'").readlines()
+	resp=subprocess.Popen( ["aws ec2 describe-instances --instance-id "+instance_id+ \
+							" --query \'Reservations[0].Instances[0].PublicDnsName\'"], \
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	temp=resp.stdout.readlines()
+	if temp==[]:
+		error=ssh.stderr.readlines()
+		print error
+		return 2
+	else:
+		id=temp[0].strip('\"\n')
+		resp.stdout.close()
+		resp.wait()
+		return id
+
+
+def tar_directory(instance_dns, directory, user):
+	def fun():
+		print "Start compress:\n"
+
+	t=threading.Timer(30, fun())
+
+	ssh=subprocess.Popen([	"ssh -o \"StrictHostKeyChecking no\" "+user+"@"+instance_dns], \
+								stdin=subprocess.PIPE, \
+								stderr=subprocess.PIPE, \
+								shell=True)
+	ssh.stdin.write("sudo tar -zcvf /afewmore_615.tar.gz "+directory)
+	ssh.stdin.close()
+	ssh.wait()
+	return '/afewmore_615.tar.gz'
+
+
+def retar_directory(instance_dns, directory, user):
+	ssh=subprocess.Popen([	"ssh -o \"StrictHostKeyChecking no\" "+user+"@"+instance_dns], \
+								stdin=subprocess.PIPE, \
+								stderr=subprocess.PIPE, \
+								shell=True)
+	ssh.stdin.write("sudo tar zxvf ~/afewmore_615.tar.gz -C "+directory)
+	ssh.stdin.close()
+	ssh.wait()
+
+
+def target_dir(directory, source):
+	tarDirectory=directory
+	end=directory.rfind('/')
+	if end!=0:
+		if(end==len(tarDirectory)-1):
+			tarDirectory=directory[0:end]
+			end=tarDirectory.rfind('/')
+			if end == 0:
+				end=1
+	else:
+		end=1
+	tarDirectory=directory[0:end]
+
+	print tarDirectory
+	out, err=execute("ssh -o \"StrictHostKeyChecking no\" "+source.uname+"@"+source.dns+" ls "+tarDirectory)
+	if err:
+		elog('Directory not exist')
+	else:
+		return tarDirectory
+
+
+
+def ssh_transfer(source, target_dns, source_directory, target_directory):
+	def fun():
+		print "Start ssh:\n"
+
+	t=threading.Timer(80, fun())
+	resp=subprocess.Popen([	"sudo scp -3 -o \"StrictHostKeyChecking no\" "+ \
+							source.uname+"@"+source.dns+":/afewmore_615.tar.gz "+\
+							#source.uname+"@"+source.dns+":"+source_directory+ " "+\
+							source.uname+"@"+target_dns+":~/afewmore_615.tar.gz"],
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	resp.stdout.close()
+	resp.wait()
+
+
+def duplicate_tar(n, source_directory, target_directory, source):
+	print "source instance is compressing target directory\n"
+	file_name=tar_directory(source.dns, source_directory, source.uname)
+	duplicate_id=[]
+	duplicate_ip=[]
+	duplicate_dns=[]
+	n=int(n)
+	for i in range(0,n):
+		duplicate_id.append(ec2_run_instance(source.Imgid, source.InType, source.secgroup, source.key))
+		print "Create target\n"
+		duplicate_ip.append(	ec2_instance_public_ip(duplicate_id[i])	)
+		duplicate_dns.append(	ec2_instance_public_dns(duplicate_id[i]))
+		print "tartget ip and dns got\n"
+		ssh_transfer(source,duplicate_dns[i], source_directory, tar_directory)
+		retar_directory(duplicate_dns[i], target_directory, source.uname)
+		print ("transfer finish: "+str(i+1)+" / %s \n" % n )
+	print "duplicate finish\n"
+	return duplicate_id
+
+
+def check_instance_status(instance_id):
+	out, err = execute("aws ec2 describe-instance-status --instance-id {0} --output json".format(instance_id))
+	if out:
+		status = json.loads(out)["InstanceStatuses"]
+		if status==[]:
+			out, err = execute("aws ec2 start-instances --instance-id {0}".format(instance_id))
+		print "Instance is working!\n"	
+	else:
+		elog(err)
+
+
+def get_user_name(instance_dns):
+	default_name=['root','ec2-user', 'ubuntu']
+	for name in default_name:	
+		out, err=execute("ssh -o \"StrictHostKeyChecking no\" "+name+"@"+instance_dns+" \'whoami\'")
+		if out:
+			out=out.strip('\"\n')
+			if out==name:
+				return name
+	elog('Access User Unknown')
+	return 'error'
+	
+
+
+def main():
+	instance=''
+	directory='/data'
+	n=10;
+	functionH=False
+	functionV=False
+	try:
+		opts, args=getopt.getopt(sys.argv[1:], "hvd:n:", ["help"])
+	except getopt.GetoptError:
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		sys.exit(2)
+	num_args=len(args)
+	if(num_args<1):
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		return False
+	instance=args[-0]
+	num_args-=1
+	for opt, arg in opts:
+		if opt =='-h':
+			functionH=True
+		elif opt=='-v':
+			functionV=True
+		elif opt=='-n':
+			if arg.isdigit():
+				n=arg
+				num_args-=1			
+			else:
+				print 'afewmore [-hv] [-d dir] [-n num] instance'
+		elif opt=='-d':
+			directory=arg
+			num_args-=1
+
+	if num_args>0:
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		return False
+	
+	check_instance_status(instance)
+	source=Instance(instance)
+	source.uname=get_user_name(source.dns)
+	print 'Finish Initialize'
+	tarDirectory=target_dir(directory, source)
+	target=duplicate_tar(n, directory, tarDirectory, source)
+	print target
+	
+
+
+if __name__ == '__main__':
+	main()
