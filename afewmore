@@ -1,334 +1,13 @@
 #!/usr/bin/env python
 
+import sys, getopt, os, json
 import subprocess
-import sys
-import json
-import os 
-import time
+import threading
 import signal
+import time
 
-from collections import deque
-
-#prints error message
-
-def elog(line):
-    sys.stderr.write(line + "\n")
-    sys.exit(1)
-#processing message
-def log(line)
- if DEBUG:
-    print "DEBUG: " +str(round(float(time.time() - START_TIME).3))+"s -" +str(line)
-
-# Security Groups
-class SecurityGroup
-  def_init_(self,sg):
-    self.gname = sg["GroupName"]
-    self.gid = sg["GroupID"]
-
-  def_str_(self):
-  return "\tGroupName: {0}\n\tGroupID: {1}".format(self.gname, self.gid)
-
-
-class Instance:
-  def_init_(self, instanceID):
-    out,err = execute("aws ec2-describe-instances --instance-id {0} --output json".format(instanceID))
-
-  if out:
-    instance = json.loads(out)["Reservations"][0]["Instances"[0]
-    self.inId = instanceID
-    self.azone = instance["Placement"]["AvailabilityZone"]
-    self.key = instance["KeyName"]
-    self.Imgid = instance["ImageId"]
-    self.InType = instance["InstanceType"]
-    self.Ip = instance ["PublicIP"]
-    self.dns = instance["PublicDNS"]
-    self.uname = "root"
-    self.mkp = "~/.ssh/my-key-pair.pem"
-    self.secgroup = []
-
-    for group in instance["SecurityGroup"]:
-      self.secgroup.append(SecurityGroup(group))
-    else:
-      elog(err) 
-  def_str_(self):
-    res="\tinstanceID:{0} \n\tAvailabilityZone: {1}\n\tKeyName: {2}\n\tImageId: {3}\n\tInsatnceType: {4}\n\t
-        PublicIP: {5}".format(self.inID, self.azone, self.key, self.Imgid, self.InType, self.Ip)
-        for i, group in enumerate(self.secgroup):
-          res += "\n\tSG #" + str(i)
-          res += str(group)
-    return res
-
-#Checks to see if there is a successful login using ssh
-#If yes, a footprint of instance will be returned
-
-def Ready(self):
-  log("Checking Instance: {0}".format(self.inID))
-  out,err = execute("ssh-keyscan {0}".format(self.Ip)
-
-  if out:
-    out,err = execute("echo '{0}'>> ~/.ssh/known_hosts".format(out))
-    if err:
-      elog(err)
-    log("Instance: {0} is ready, hosts have been added".format(self.Inid))
-    return True
-  elif err:
-   elog(err)
-
-  log("Instance: {0} is not ready".format(self.Inid))
-  return False
-
-def setLogin(self,username):
-  self.uname = username
-
-#host parser which parses ~/.ssh.config to the host
-
-def parser(dir)
-config = open(dir,'r')
-except IOError, err:
-elog("afewmore ERROR: can not open file: {0}".format(dir))
-
-lines = config.readlines()
-hosts = []
-for i in range(len(lines)):
-  if lines[i].strip(" ").split(" ")[0] == "Host":
-  j = i + 1
-  while(j < len(lines) and lines[j].strip(" ").split(" ")[0]!="Host"):
-  j += 1
-  res = [lines[k] for k in range(i,j)]
-  hosts.append(Host([item.strip().split(" ") for item in res]))
-config.close()
-
-#executing the function
-#successful return is (stdout, None), if not successful, return is (None,stderr)
-
-def execute(cmd, timeout=None):
-
-try:
-  proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
-
-output, error = proc.communicate()
-
-if timeout is not None:
-  time.sleep(timeout)
-  log("kill command: \n\t{0}".format(cmd)
-  os.killprog(pro.pid, signal.SIGTERM)
-  return (output, error)
-
-if output:
-  return (output, None)
-if error:
-  log("There was an error executing the command: \n\t{0}".format(cmd))
-  return (None, error)
-return ("", None)
-
-except OSError, oserror:
-  return (None, oserror)
-
-#Analyzing the original instance
-
-def analyze_instance(instanceID, copy_dir):
-  log("Analyzing the original Instance: {0}".format(instanceID))
-
-origin = Instance(instanceID)
-while not origin.Ready():
-  origin.Ready()
-
-log('cheking username...')
-  out, err = execute("ssh {0}@{1} 'echo cs615'".format(origin.uname, origin.dns))
-
-if err:
-  log(err)
-  elog("afewmore ERROR: can not access instance: {0}".format(origin.inId))
-
-else:
-  msg = out.split(' ')
-  if msg[0].strip() !="cs615":
-  log("user is not [0]".format(origin.uname))
-  login = msg[5].strip{'"')
-  log("changing user to {0}".format(login))
-  origin.setLogin(login)
-
-else: log("user is {0}".format(origin.uname))
-
-#sets superuser command
-SUPER_USER_COMMAND = 'sudo'
-log('changing dir ownership...')
-execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(origin.uname, origin.dns, SUPER_USER_COMMAND, copy_dir))
-log('changing dir mode...')
-execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(origin.uname, origin.dns, SUPER_USER_COMMAND, copy_dir))
-log("Checking source directory..")
-out, err = execute(("ssh {0}@{1} 'ls -l {2}'".format(origin.uname, origin.pubDns, copy_dir))
-        if err:
-            elog("afewmore ERROR: cannot access directory or no such file")
-print err
-
-return origin
-
-#Analyzes Created Instance
-
-dir analyze_created(created, target_dir)
-log('cheking username...')
-  out, err = execute("ssh {0}@{1} 'echo cs615'".format(created.uname, created.dns))
-
-if err:
-  log(err)
-  elog("afewmore ERROR: can not access instance: {0}".format(created.inId))
-
-else:
-  msg = out.split(' ')
-  if msg[0].strip() !="cs615":
-  log("user is not [0]".format(created.uname))
-  login = msg[5].strip{'"')
-  log("changing user to {0}".format(login))
-  created.setLogin(login)
-
-else: log("user is {0}".format(created.uname))
-
-#sets superuser command
-SUPER_USER_COMMAND = 'sudo'
-log('Creating Target Dir..')
-execute("ssh {0}@{1} '{2} mkdir -p {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
-log('changing dir ownership...')
-execute("ssh {0}@{1} '{2} chown -R {0} {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
-log('changing dir mode...')
-execute("ssh {0}@{1} '{2} chown -R 700 {3}'".format(created.uname, created.dns, SUPER_USER_COMMAND, target_dir))
-log("Checking source directory..")
-out, err = execute(("ssh {0}@{1} 'ls -l {2}'".format(created.uname, created.pubDns, target_dir))
-        if err:
-            elog("afewmore ERROR: cannot access directory or no such file")
-print err
-
-return created
-
-def duplicate(origin_inst, num):
-
-instances_queue = [] 
-    origin = origin_inst
-    out, err = execute("aws ec2 run-instances --placement AvailabilityZone={0} --image-id {1} --security-group-ids {2} --count {3} --instance-type {4} --key-name {5} --query 'Instances[*].InstanceId' --output json"
-        .format(
-        origin.azone,
-        origin.Imgid,
-        " ".join([group.gid for group in origin.secgroup]),
-        num,
-        origin.Intype,
-        origin.key
-    ))
-    if out:
-        for instanceID in json.loads(out):
-            log("pushing instance: {0} to queue".format(instanceID))
-            instances_queue.append(Instance(instanceID))
-        return deque(instances_queue)
-    else:
-elog(err)
-
-#Copy files from source to new instance
-
-def scp(origin, targets, dir="/data"):
-
-     if dir[len(dir) - 1] != "/":
-        dir += "/"
-
-    while len(targets) is not 0:
-        target = targets.popleft()
-        target.uname = origin.uname
-
-        start_time = time.time()
-
-        if target.isReady():
-            target = analyze_created(target, dir)
-            log("copying to target: {0}".format(target.inId))
-            out, err = execute("scp -3C -r {0}@{1}:{2} {3}@{4}:{5}"
-                .format(origin.uname, origin.dns, dir + "*", target.uname, target.dns, dir))
-            if err:
-                elog(err)
-            if out:
-                log(out)
-            else:
-                log("successfully copied files")
-                if not DEBUG:
-                    print "\t" + target.inId
-               log(target)
-        else:
-            targets.append(target)
-        
-        end_time = time.time()
-
-        if end_time - start_time < 5:
-            log("wating...")
-time.sleep(5)
-
-# Start of the program
-def start(instanceID, copy_dir, num_new_ins):
-    log("starting with {0} {1} {2}".format(instanceID, copy_dir, num_new_ins))
-    log("verbose: " + str(DEBUG))
-
-    origin_instance = analyze_instance(instanceID, copy_dir)
-    log("Completed checking source instance: " + origin_inst.inId)
-
-    log("duplicating instances...")
-    targets_queue = duplicate(origin_inst, num_new_ins)
-    log("Completed duplicating instnaces ")
-
-    log("Copying " + copy_dir + "...")
-    scp(origin_inst, targets_queue, copy_dir)
-
-    log("Completed\n")
-
-if __name__ == "__main__":
-
-    DEBUG = False  
-#Source Config File
-    SSH_CONFIG_DIR = os.path.expanduser('~') + "/.ssh/config"
-#Source instance provided by the user    
-    INSTANCE_ID = "" 
-#Default number of instances to start
-    NUM_NEW_INS = 10 
-#Deafult Directory to copy files from
-    COPY_DIR = "/data" 
-    START_TIME = time.time()
-
-    options = sys.argv 
-    FLAGS = {
-        "-h":False,
-        "-d":False,
-        "-n":False,
-        "-v":False,
-    }
-    i = 1
-
-    while i < len(options):
-        op = options[i]
-        if op not in FLAGS or i is len(options) - 1:
-            if (len(op) is not 19):
-                elog("afewmore ERROR: Invalid argument {0}".format(op))
-            if i is not len(options) - 1:
-                elog("afewmore ERROR: Invalid argument after {0}".format(op))
-            INSTANCE_ID = op
-            start(INSTANCE_ID, COPY_DIR, NUM_NEW_INS)
-            break;
-        if FLAGS[op]:
-            elog("afewmore ERROR: Multiple argument {0}".format(op))
-
-        if op == "-n":
-            FLAGS["-n"] = True
-            i += 1
-            try:
-                NUM_NEW_INS = int(options[i])
-            except (IndexError, ValueError) as err:
-                elog("afewmore ERROR: Invalid argument after {0}".format(op))
-        if op == "-d":
-            FLAGS["-d"] = True
-            i += 1
-            try:
-                COPY_DIR = options[i]
-            except ValueError, err:
-                elog("afewmore ERROR: Invalid argument after {0}".format(op))
-        if op == "-v":
-            FLAGS["-v"] = True
-            DEBUG = True
-        if op == "-h":
-
-
+#Manual Page
+def help_page():
             print "AFEWMORE(1)       BSD General Commands Manual          AFEWMORE(1)\n\
     \n\
     NAME\n\
@@ -433,7 +112,303 @@ if __name__ == "__main__":
          Spring of 2017.\n\
     \n\
     BSD             March 27, 2017                 BSD"
-            break
-        i += 1
 
 
+
+#error record, in this program, just print error information
+def elog(line):
+	sys.stderr.write(line + "\n")
+	sys.exit(1)
+
+
+#processing message
+def log(line):
+     if False:
+         print "DEBUG: " + str(round(float(time.time() - START_TIME), 3)) + "s - " + str(line)
+
+
+# Security Groups
+class SecurityGroup:
+	def __init__(self, sg):
+		self.gname=sg["GroupName"]
+		self.gid=sg["GroupId"]
+	def __str__(self):
+		return "\tGroupName: {0}\n\tGroupID: {1}".format(self.gname, self.gid)
+
+# Finish certain script command from system,
+def execute(cmd, timeout=None):
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, preexec_fn=os.setsid)
+        output, error = proc.communicate()
+        if timeout is not None:
+            time.sleep(timeout)
+            log("kill command: \n\t{0}".format(cmd))
+            os.killprog(proc.pid, signal.SIGTERM)
+            return (output, error)
+        if output:
+           return (output, None)
+        if error:
+           log("There was an error executing the command: \n\t{0}".format(cmd))
+           return (None, error)
+        return ("", None)
+    except OSError, oserror:
+        return (None, oserror)
+
+#Store information of a exist instance
+class Instance:
+	def __init__(self, instanceID):
+		out, err = execute("aws ec2 describe-instances --instance-id {0} --output json".format(instanceID))
+		if out:
+			instance = json.loads(out)["Reservations"][0]["Instances"][0]
+			self.inId = instanceID
+			self.azone = instance["Placement"]["AvailabilityZone"]
+			self.key = instance["KeyName"]
+			self.Imgid = instance["ImageId"]
+			self.InType = instance["InstanceType"]
+			self.Ip = instance["PublicIpAddress"]
+			self.dns = instance["PublicDnsName"]
+			self.uname = "ubuntu"
+			self.mkp = "~/.ssh/my-key-pair.pem"
+			self.secgroup = []
+			for group in instance["SecurityGroups"]:
+				self.secgroup.append(SecurityGroup(group))
+		else:
+			elog(err) 
+	def __str__(self):
+		res="\tinstanceID:{0} \n\tAvailabilityZone: {1}\n\tKeyName: {2}\n\tImageId: {3}\n\tInsatnceType: {4}\n\tPublicIP: {5}".format(self.inID, self.azone, self.key, self.Imgid, self.InType, self.Ip)
+		for i, group in enumerate(self.secgroup):
+			res += "\n\tSG #" + str(i)
+			res += str(group)
+			return res
+
+# Start a new instance, if no error, return new instance id
+def ec2_run_instance(image_id, insType, group, key):
+	gs=""
+	for g in group:
+		gs+=g.gname
+		gs+=" "
+	resp=subprocess.Popen([	"aws ec2 run-instances --image-id "+image_id+ \
+							" --security-groups "+gs+ \
+							" --instance-type "+insType+ \
+							" --key-name "+key+ \
+							" --query 'Instances[0].InstanceId'"], \
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	temp=resp.stdout.readlines()
+	if temp==[]:
+		error=resp.stderr.readlines()
+		print error
+		return 2
+	else:
+		instance_id=temp[0].strip('\"\n')
+		resp.stdout.close()
+		resp.wait()
+		return instance_id
+
+# terminate a certain instance
+def ec2_terminate_instance(instance_id):
+	os.system("aws ec2 terminate-instances --instance-id "+instance_id)
+
+# Give instance id, and you will get the ip address
+def ec2_instance_public_ip(instance_id):
+	resp=subprocess.Popen([	"aws ec2 describe-instances --instance-id "+instance_id+ \
+							" --query \'Reservations[0].Instances[0].PublicIpAddress\'"], \
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	temp=resp.stdout.readlines()
+	if temp==[]:
+		error=resp.stderr.readlines()
+		elog(err)
+		return 2
+	else:
+		dns=temp[0].strip('\"\n')
+		resp.stdout.close()
+		resp.wait()
+		return dns
+
+# Give instance id, and you will get the ip address
+def ec2_instance_public_dns(instance_id):
+	
+	resp=subprocess.Popen( ["aws ec2 describe-instances --instance-id "+instance_id+ \
+							" --query \'Reservations[0].Instances[0].PublicDnsName\'"], \
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	temp=resp.stdout.readlines()
+	if temp==[]:
+		error=ssh.stderr.readlines()
+		print error
+		return 2
+	else:
+		id=temp[0].strip('\"\n')
+		resp.stdout.close()
+		resp.wait()
+		return id
+
+# use tar command to compress target directory, 
+def tar_directory(instance_dns, directory, user):
+	def fun():
+#		print "Start compress:\n"
+	#let progress sleep 30 seconds, this is just make sure we could access instance when aws server just finish run-instance
+        	t=threading.Timer(30, fun())
+
+	ssh=subprocess.Popen([	"ssh -o \"StrictHostKeyChecking no\" "+user+"@"+instance_dns], \
+								stdin=subprocess.PIPE, \
+								stderr=subprocess.PIPE, \
+								shell=True)
+	if user=="root":
+		ssh.stdin.write("tar -zcvf /afewmore_615.tar.gz "+directory)
+	else:
+		ssh.stdin.write("sudo tar -zcvf /afewmore_615.tar.gz "+directory)
+	ssh.stdin.close()
+	ssh.wait()
+	return '/afewmore_615.tar.gz'
+
+# Use tar command to uncompress .tar.gz, this function will be use in target instance
+def retar_directory(instance_dns, directory,user):
+	ssh=subprocess.Popen([	"ssh -o \"StrictHostKeyChecking no\" "+user+"@"+instance_dns], \
+								stdin=subprocess.PIPE, \
+								stderr=subprocess.PIPE, \
+								shell=True)
+	if user=="root":
+		ssh.stdin.write("tar zxvf ~/afewmore_615.tar.gz -C "+directory)
+	else:
+		ssh.stdin.write("sudo tar -zxvf ~/afewmore_615.tar.gz -C "+directory)
+	ssh.stdin.close()
+	ssh.wait()
+
+# If we copy /home from original instance, we obviously can not compress it at /home, because we may get /home/home.
+#So we need correct target uncompress path.
+def target_dir(directory, source):
+	tarDirectory=directory
+	end=directory.rfind('/')
+	if end!=0:
+		if(end==len(tarDirectory)-1):
+			tarDirectory=directory[0:end]
+			end=tarDirectory.rfind('/')
+			if end == 0:
+				end=1
+	else:
+		end=1
+	tarDirectory=directory[0:end]
+
+	out, err=execute("ssh -o \"StrictHostKeyChecking no\" "+source.uname+"@"+source.dns+" ls "+tarDirectory)
+	if err:
+		elog('Directory not exist')
+	else:
+		return tarDirectory
+
+
+#Use scp -3 to transfer .tar.gz file
+def ssh_transfer(source, target_dns, source_directory, target_directory):
+#	print "Start ssh, it may take a little bit long time\n"
+	time.sleep(100)
+	resp=subprocess.Popen([	"scp -3 -o \"StrictHostKeyChecking no\" "+ \
+							source.uname+"@"+source.dns+":/afewmore_615.tar.gz "+\
+							source.uname+"@"+target_dns+":~/afewmore_615.tar.gz"],
+							stdout=subprocess.PIPE, \
+							stderr=subprocess.PIPE, \
+							shell=True)
+	resp.stdout.close()
+	resp.wait()
+
+# This function will combine may functions above, read original instance, and create new instance.
+def duplicate_tar(n, source_directory, target_directory, source):
+#	print "source instance is compressing target directory, please wait\n"
+	file_name=tar_directory(source.dns, source_directory, source.uname)
+	duplicate_id=[]
+	duplicate_ip=[]
+	duplicate_dns=[]
+	n=int(n)
+	for i in range(0,n):
+		duplicate_id.append(ec2_run_instance(source.Imgid, source.InType, source.secgroup, source.key))
+#		print "Create target instance\n"
+		duplicate_ip.append(	ec2_instance_public_ip(duplicate_id[i])	)
+		duplicate_dns.append(	ec2_instance_public_dns(duplicate_id[i]))
+#		print "Got tartget instance ip and dns\n"
+		ssh_transfer(source,duplicate_dns[i], source_directory, target_directory)
+		retar_directory(duplicate_dns[i], target_directory, source.uname)
+#		print ("transfer finish: "+str(i+1)+" / %s \n" % n )
+#	print "duplicate finish\n"
+	return duplicate_id
+
+# Make sure source instance is running. If not start it
+def check_instance_status(instance_id):
+	out, err = execute("aws ec2 describe-instance-status --instance-id {0} --output json".format(instance_id))
+	if out:
+		status = json.loads(out)["InstanceStatuses"]
+		if status==[]:
+			out, err = execute("aws ec2 start-instances --instance-id {0}".format(instance_id))
+#		print "Origin instance is working!\n"	
+	else:
+		elog(err)
+
+# Get the correct user name of an instance. Four candidate user names are the usual aws ec2 instance names
+# The way to look up user name, is use each candidate user name to access instance. Catch information and indentify wich does it work.
+def get_user_name(instance_dns):
+	default_name=['root','ec2-user', 'ubuntu', 'fedora']
+	for name in default_name:	
+		out, err=execute("ssh -o \"StrictHostKeyChecking no\" "+name+"@"+instance_dns+" \'whoami\'")
+		if out:
+			out=out.strip('\"\n')
+			if out==name:
+				return name
+	elog('Access User Unknown')
+	return 'error'
+	
+
+#root function of this script
+def main():
+	#Catch the user input, and anaylse it
+	instance=''
+	directory='/data'
+	n=10;
+	functionH=False
+	functionV=False
+	try:
+		opts, args=getopt.getopt(sys.argv[1:], "hvd:n:", ["help"])
+	except getopt.GetoptError:
+		print 'afewmore [-hv] [-d dir] [-n num] instance'
+		sys.exit(2)
+	num_args=len(args)
+	if(num_args<1):
+		help_page()
+		return False
+	instance=args[-0]
+	num_args-=1
+	for opt, arg in opts:
+		if opt =='-h':
+			functionH=True
+			help_page()
+			sys.exit(0)
+		elif opt=='-v':
+			functionV=True
+		elif opt=='-n':
+			if arg.isdigit():
+				n=arg
+				num_args-=1			
+			else:
+				help_page()
+				sys.exit(0)
+		elif opt=='-d':
+			directory=arg
+			num_args-=1
+
+	if num_args>0:
+		help_page()
+		sys.exit(0)
+	#use the analysis result to copy directory
+	check_instance_status(instance)
+	source=Instance(instance)
+	source.uname=get_user_name(source.dns)
+	tarDirectory=target_dir(directory, source)
+	target=duplicate_tar(n, directory, tarDirectory, source)
+	print target
+
+	
+
+
+if __name__ == '__main__':
+	main()
