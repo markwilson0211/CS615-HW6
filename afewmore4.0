@@ -58,7 +58,7 @@ class Instance:
 			self.InType = instance["InstanceType"]
 			self.Ip = instance ["PublicIpAddress"]
 			self.dns = instance["PublicDnsName"]
-			self.uname = "ubuntu", "root", "ec2-user"
+			self.uname = "ubuntu","root","ec2-user", "fedora"
 			self.mkp = "~/.ssh/my-key-pair.pem"
 			self.secgroup = []
 			for group in instance["SecurityGroups"]:
@@ -237,7 +237,7 @@ def check_instance_status(instance_id):
 
 
 def get_user_name(instance_dns):
-	default_name=['root','ec2-user','ubuntu']
+	default_name=['root','ec2-user','ubuntu', 'fedora']
 	for name in default_name:	
 		out, err=execute("ssh -o \"StrictHostKeyChecking no\" -i ~/.ssh/config "+name+"@"+instance_dns+" \'whoami\'")
 		if out:
